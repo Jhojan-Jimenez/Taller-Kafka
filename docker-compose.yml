@@ -61,6 +61,7 @@ services:
   ordering:
     build: ./services/ordering
     container_name: ordering-service
+    restart: on-failure
     ports:
       - "3001:3001"
     environment:
@@ -80,6 +81,7 @@ services:
   billing:
     build: ./services/billing
     container_name: billing-service
+    restart: on-failure
     ports:
       - "3002:3002"
     environment:
@@ -99,6 +101,7 @@ services:
   inventory:
     build: ./services/inventory
     container_name: inventory-service
+    restart: on-failure
     ports:
       - "3003:3003"
     environment:
@@ -118,6 +121,7 @@ services:
   shipping:
     build: ./services/shipping
     container_name: shipping-service
+    restart: on-failure
     ports:
       - "3004:3004"
     environment:
@@ -137,6 +141,7 @@ services:
   notification:
     build: ./services/notification
     container_name: notification-service
+    restart: on-failure
     ports:
       - "3005:3005"
     environment:
