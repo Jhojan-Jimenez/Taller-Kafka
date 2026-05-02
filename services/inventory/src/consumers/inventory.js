@@ -39,7 +39,7 @@ async function startConsumer() {
       }
 
       // Phase 2: reserve stock in transaction
-      const { orderId, customerId, customerEmail, customerName, customerAddress, items } = event.data;
+      const { orderId, customerId, customerEmail, customerName, customerAddress, items, totalAmount } = event.data;
       let allReserved = true;
 
       const conn = await pool.getConnection();
@@ -98,6 +98,7 @@ async function startConsumer() {
           customerName,
           customerAddress,
           items,
+          totalAmount,
         },
       };
       await producer.send({
