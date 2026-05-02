@@ -1,0 +1,27 @@
+# Dependencies — ningún servicio sube su node_modules
+**/node_modules/
+**/npm-debug.log*
+**/yarn-error.log*
+
+# Variables de entorno locales (configúralas en Coolify)
+.env
+.env.local
+.env.*.local
+
+# Datos persistidos por Docker en local (no van al repo)
+mysql-data/
+data/
+
+# Logs
+**/logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
