@@ -1,0 +1,102 @@
+version: "3.9"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ShopTech — Observabilidad con OpenTelemetry
+# Local  : docker compose up --build
+# VPS    : Coolify apunta al repo, usa este archivo directamente.
+#          Variables de entorno se configuran en el dashboard de Coolify:
+#            NEW_RELIC_LICENSE_KEY=<tu clave NRAK-...>
+# ──────────────────────────────────────────────────────────────────────────────
+
+networks:
+  shoptech:
+    driver: bridge
+
+volumes:
+  postgres_data:
+
+services:
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: shoptech
+      POSTGRES_USER: shoptech
+      POSTGRES_PASSWORD: shoptech
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [shoptech]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shoptech"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── OTel Collector — build local con config embebida ────────────────────────
+  # El Dockerfile de otel-collector/ copia config.yaml dentro de la imagen.
+  # NEW_RELIC_LICENSE_KEY se inyecta en runtime (Coolify dashboard / .env local).
+  otel-collector:
+    build: ./otel-collector
+    restart: unless-stopped
+    environment:
+      NEW_RELIC_LICENSE_KEY: "${NEW_RELIC_LICENSE_KEY}"
+    ports:
+      - "4317:4317"   # OTLP gRPC  (servicios → collector)
+      - "4318:4318"   # OTLP HTTP  (servicios → collector)
+      - "8888:8888"   # metricas internas del collector
+      - "13133:13133" # health check
+    networks: [shoptech]
+    depends_on:
+      - jaeger
+
+  # ── Jaeger — visualizacion de trazas ─────────────────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      SPAN_STORAGE_TYPE: memory
+      MEMORY_MAX_TRACES: "50000"
+    ports:
+      - "16686:16686" # Jaeger UI  → http://<vps-ip>:16686
+      - "4319:4317"   # OTLP gRPC interno de Jaeger
+    networks: [shoptech]
+
+  # ── xxx-service: order-service ───────────────────────────────────────────────
+  order-service:
+    build: ./order-service
+    restart: unless-stopped
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+      OTEL_SERVICE_NAME: "order-service"
+      INVENTORY_SERVICE_URL: "http://inventory-service:8001"
+      ENVIRONMENT: "production"
+      SERVICE_VERSION: "1.0.0"
+    ports:
+      - "8000:8000"   # API publica → http://<vps-ip>:8000
+    networks: [shoptech]
+    depends_on:
+      - otel-collector
+      - inventory-service
+
+  # ── yyy-service: inventory-service ──────────────────────────────────────────
+  inventory-service:
+    build: ./inventory-service
+    restart: unless-stopped
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+      OTEL_SERVICE_NAME: "inventory-service"
+      DATABASE_URL: "postgresql+asyncpg://shoptech:shoptech@postgres:5432/shoptech"
+      ENVIRONMENT: "production"
+      SERVICE_VERSION: "1.0.0"
+    ports:
+      - "8001:8001"
+    networks: [shoptech]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started

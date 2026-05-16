@@ -1,0 +1,93 @@
+# OpenTelemetry Collector — config asíncrono con BatchProcessor
+# Image: otel/opentelemetry-collector-contrib:0.111.0
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317   # recibe trazas/métricas/logs de los servicios
+      http:
+        endpoint: 0.0.0.0:4318   # alternativa HTTP
+
+processors:
+  # Limita uso de memoria para evitar OOM en el pod
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 400
+    spike_limit_mib: 100
+
+  # Batch: aquí está el comportamiento ASÍNCRONO del collector.
+  # Acumula datos y los envía en lotes → reduce llamadas a backends.
+  batch:
+    send_batch_size: 512
+    send_batch_max_size: 1024
+    timeout: 10s               # máximo tiempo de espera antes de enviar
+
+  # Añade atributos del entorno (nodo K8s, pod, namespace)
+  resourcedetection:
+    detectors: [env, system]
+    timeout: 5s
+
+exporters:
+  # Útil para debugging: imprime todo en el log del collector
+  debug:
+    verbosity: normal
+
+  # Exporta trazas a Jaeger (OTLP nativo, soportado desde Jaeger 1.35)
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+  # Exporta trazas + métricas + logs a New Relic vía OTLP HTTP
+  # La clave de licencia viene del Secret de K8s / variable de entorno
+  otlphttp/newrelic:
+    endpoint: https://otlp.nr-data.net   # US datacenter; EU: otlp.eu01.nr-data.net
+    headers:
+      api-key: "${env:NEW_RELIC_LICENSE_KEY}"
+    compression: gzip
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+    sending_queue:
+      enabled: true
+      num_consumers: 4
+      queue_size: 1000          # cola asíncrona en memoria
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679    # http://localhost:55679/debug/tracez
+
+service:
+  extensions: [health_check, pprof, zpages]
+
+  pipelines:
+    # ── Trazas: Jaeger (visualización local) + New Relic ─────────────
+    traces:
+      receivers:  [otlp]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters:  [debug, otlp/jaeger, otlphttp/newrelic]
+
+    # ── Métricas: sólo New Relic (Jaeger no soporta métricas) ────────
+    metrics:
+      receivers:  [otlp]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters:  [debug, otlphttp/newrelic]
+
+    # ── Logs correlacionados: sólo New Relic ─────────────────────────
+    logs:
+      receivers:  [otlp]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters:  [debug, otlphttp/newrelic]
+
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      address: 0.0.0.0:8888    # métricas internas del collector

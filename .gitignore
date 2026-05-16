@@ -1,0 +1,45 @@
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# ── Secretos y configuracion local ────────────────────────────────────────────
+.env
+.env.*
+*.env
+!.env.example
+
+# ── Editores e IDEs ───────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Sistema operativo ────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+Thumbs.db
+desktop.ini
+
+# ── Docker ───────────────────────────────────────────────────────────────────
+*.log
+docker-compose.override.yml
+
+# ── Scripts de Azure (no necesarios en la VPS) ───────────────────────────────
+deploy-azure.ps1
+deploy-azure-aca.ps1
