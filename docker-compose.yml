@@ -54,7 +54,7 @@ services:
 
   # ── Jaeger — visualizacion de trazas ─────────────────────────────────────────
   jaeger:
-    image: jaegertracing/all-in-one:1.62
+    image: jaegertracing/all-in-one:latest
     restart: unless-stopped
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
