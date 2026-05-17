@@ -6,7 +6,6 @@ from opentelemetry._logs import set_logger_provider
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.instrumentation.logging import LoggingInstrumentation
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.metrics import MeterProvider
@@ -59,7 +58,5 @@ def configure_telemetry(service_name: str) -> tuple:
     root = logging.getLogger()
     root.addHandler(otel_handler)
     root.setLevel(logging.INFO)
-
-    LoggingInstrumentation().instrument(set_logging_format=True)
 
     return trace.get_tracer(service_name), metrics.get_meter(service_name)
